@@ -58,9 +58,17 @@ st.markdown("""
     <h1 style='text-align: center; color: #667eea; padding: 20px;'>
         📊 Complete Data Analysis Platform
     </h1>
-    <p style='text-align: center; color: #666; font-size: 18px; margin-bottom: 30px;'>
+    <p style='text-align: center; color: #666; font-size: 18px; margin-bottom: 10px;'>
         Your End-to-End Data Analysis Journey: From Problem Definition to Actionable Insights
     </p>
+    <div style='text-align: center; margin-bottom: 30px;'>
+        <a href='https://github.com/rahul25118' target='_blank' style='margin: 0 15px; text-decoration: none;'>
+            <img src='https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white' alt='GitHub'>
+        </a>
+        <a href='https://www.linkedin.com/in/rahul-mishra-b71ba21b8/' target='_blank' style='margin: 0 15px; text-decoration: none;'>
+            <img src='https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white' alt='LinkedIn'>
+        </a>
+    </div>
 """, unsafe_allow_html=True)
 
 # Create tabs for all 7 steps
@@ -733,6 +741,15 @@ with tab7:
 st.markdown("---")
 st.markdown("""
     <div style='text-align: center; color: #666; padding: 20px;'>
-        <p>Built with ❤️ using Streamlit | Complete Data Analysis Platform v2.0</p>
+        <p style='margin-bottom: 15px;'>Built with ❤️ using Streamlit | Complete Data Analysis Platform v2.0</p>
+        <div>
+            <a href='https://github.com/rahul25118' target='_blank' style='margin: 0 10px; text-decoration: none;'>
+                <img src='https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white' alt='GitHub'>
+            </a>
+            <a href='https://www.linkedin.com/in/rahul-mishra-b71ba21b8/' target='_blank' style='margin: 0 10px; text-decoration: none;'>
+                <img src='https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white' alt='LinkedIn'>
+            </a>
+        </div>
+        <p style='margin-top: 15px; font-size: 14px;'>Connect with me for collaborations and feedback!</p>
     </div>
 """, unsafe_allow_html=True)
