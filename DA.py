@@ -205,31 +205,118 @@ with tab3:
                 st.success(f"Removed {before - after} duplicate rows!")
         
         with col2:
-            st.markdown("#### 🔧 Handle Missing Values")
-            missing_action = st.selectbox(
-                "Choose action for missing values",
-                ["Keep as is", "Drop rows with any missing", "Fill with mean (numeric)", "Fill with mode (categorical)", "Drop columns with >50% missing"]
-            )
-            
-            if st.button("Apply Missing Value Action"):
-                if missing_action == "Drop rows with any missing":
-                    df = df.dropna()
-                    st.success("Dropped rows with missing values!")
-                elif missing_action == "Fill with mean (numeric)":
-                    numeric_cols = df.select_dtypes(include=[np.number]).columns
-                    df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
-                    st.success("Filled numeric columns with mean!")
-                elif missing_action == "Fill with mode (categorical)":
-                    cat_cols = df.select_dtypes(include=['object']).columns
-                    for col in cat_cols:
-                        df[col] = df[col].fillna(df[col].mode()[0] if not df[col].mode().empty else 'Unknown')
-                    st.success("Filled categorical columns with mode!")
-                elif missing_action == "Drop columns with >50% missing":
-                    threshold = len(df) * 0.5
-                    df = df.dropna(thresh=threshold, axis=1)
-                    st.success("Dropped columns with >50% missing values!")
-                
+            st.markdown("#### 🔧 Quick Actions")
+            if st.button("Drop All Rows with ANY Missing Value"):
+                before = len(df)
+                df = df.dropna()
+                after = len(df)
                 st.session_state.cleaned_data = df
+                st.success(f"Dropped {before - after} rows with missing values!")
+        
+        # Column-by-Column Missing Value Treatment
+        st.markdown("---")
+        st.markdown("### 🎯 Column-by-Column Missing Value Treatment")
+        
+        # Get columns with missing values
+        cols_with_missing = df.columns[df.isnull().any()].tolist()
+        
+        if len(cols_with_missing) > 0:
+            st.info(f"Found {len(cols_with_missing)} columns with missing values. Treat them individually below:")
+            
+            # Create tabs for each column with missing values
+            if len(cols_with_missing) <= 10:
+                for col in cols_with_missing:
+                    with st.expander(f"📊 {col} - {df[col].isnull().sum()} missing values ({(df[col].isnull().sum()/len(df)*100):.1f}%)"):
+                        col_type = df[col].dtype
+                        
+                        col_left, col_right = st.columns([2, 1])
+                        
+                        with col_left:
+                            st.markdown(f"**Data Type:** {col_type}")
+                            st.markdown(f"**Missing:** {df[col].isnull().sum()} out of {len(df)} rows")
+                            
+                            # Show sample values
+                            st.markdown("**Sample Non-Missing Values:**")
+                            sample_vals = df[col].dropna().head(5).tolist()
+                            st.write(sample_vals)
+                        
+                        with col_right:
+                            # Method selection based on data type
+                            if pd.api.types.is_numeric_dtype(df[col]):
+                                method = st.selectbox(
+                                    f"Method for {col}",
+                                    ["Select Method", "Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with Custom Value", "Forward Fill", "Backward Fill"],
+                                    key=f"method_{col}"
+                                )
+                                
+                                if method == "Fill with Custom Value":
+                                    custom_val = st.number_input(f"Custom value for {col}", key=f"custom_{col}")
+                                
+                            else:  # Categorical/Object type
+                                method = st.selectbox(
+                                    f"Method for {col}",
+                                    ["Select Method", "Drop Rows", "Fill with Mode", "Fill with Custom Value", "Fill with 'Unknown'", "Forward Fill", "Backward Fill"],
+                                    key=f"method_{col}"
+                                )
+                                
+                                if method == "Fill with Custom Value":
+                                    custom_val = st.text_input(f"Custom value for {col}", key=f"custom_{col}")
+                            
+                            # Apply button for this column
+                            if st.button(f"Apply to {col}", key=f"apply_{col}"):
+                                if method == "Select Method":
+                                    st.warning("Please select a method first!")
+                                elif method == "Drop Rows":
+                                    before = len(df)
+                                    df = df.dropna(subset=[col])
+                                    st.session_state.cleaned_data = df
+                                    st.success(f"Dropped {before - len(df)} rows!")
+                                elif method == "Fill with Mean":
+                                    df[col] = df[col].fillna(df[col].mean())
+                                    st.session_state.cleaned_data = df
+                                    st.success(f"Filled with mean: {df[col].mean():.2f}")
+                                elif method == "Fill with Median":
+                                    df[col] = df[col].fillna(df[col].median())
+                                    st.session_state.cleaned_data = df
+                                    st.success(f"Filled with median: {df[col].median():.2f}")
+                                elif method == "Fill with Mode":
+                                    mode_val = df[col].mode()[0] if not df[col].mode().empty else 'Unknown'
+                                    df[col] = df[col].fillna(mode_val)
+                                    st.session_state.cleaned_data = df
+                                    st.success(f"Filled with mode: {mode_val}")
+                                elif method == "Fill with Custom Value":
+                                    df[col] = df[col].fillna(custom_val)
+                                    st.session_state.cleaned_data = df
+                                    st.success(f"Filled with: {custom_val}")
+                                elif method == "Fill with 'Unknown'":
+                                    df[col] = df[col].fillna('Unknown')
+                                    st.session_state.cleaned_data = df
+                                    st.success("Filled with 'Unknown'")
+                                elif method == "Forward Fill":
+                                    df[col] = df[col].fillna(method='ffill')
+                                    st.session_state.cleaned_data = df
+                                    st.success("Applied forward fill!")
+                                elif method == "Backward Fill":
+                                    df[col] = df[col].fillna(method='bfill')
+                                    st.session_state.cleaned_data = df
+                                    st.success("Applied backward fill!")
+            else:
+                # If too many columns, show dropdown selection
+                st.warning("Too many columns with missing values. Select specific columns to treat:")
+                selected_cols = st.multiselect("Select columns to treat", cols_with_missing)
+                
+                for col in selected_cols:
+                    with st.expander(f"📊 {col}"):
+                        # Same treatment options as above
+                        col_type = df[col].dtype
+                        st.markdown(f"**Missing:** {df[col].isnull().sum()} values")
+                        
+                        if pd.api.types.is_numeric_dtype(df[col]):
+                            method = st.selectbox(f"Method", ["Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Custom Value"], key=f"m_{col}")
+                        else:
+                            method = st.selectbox(f"Method", ["Drop Rows", "Fill with Mode", "Fill with 'Unknown'", "Custom Value"], key=f"m_{col}")
+        else:
+            st.success("🎉 No missing values found in any column!")
         
         st.markdown("---")
         st.markdown("### 📊 Missing Values Heatmap")
