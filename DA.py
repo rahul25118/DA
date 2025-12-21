@@ -249,6 +249,14 @@ with tab3:
                                     key=f"method_{col}"
                                 )
                                 
+                                # Decimal handling option for Mean/Median
+                                if method in ["Fill with Mean", "Fill with Median"]:
+                                    decimal_handling = st.radio(
+                                        "Decimal Handling",
+                                        ["Keep Decimal (23.5)", "Round Up (24)", "Round Down (23)", "Round Nearest (24)"],
+                                        key=f"decimal_{col}"
+                                    )
+                                
                                 if method == "Fill with Custom Value":
                                     custom_val = st.number_input(f"Custom value for {col}", key=f"custom_{col}")
                                 
@@ -272,15 +280,33 @@ with tab3:
                                     st.session_state.cleaned_data = df
                                     st.success(f"Dropped {before - len(df)} rows!")
                                 elif method == "Fill with Mean":
-                                    df[col] = df[col].fillna(df[col].mean())
+                                    mean_val = df[col].mean()
+                                    if decimal_handling == "Round Up (24)":
+                                        fill_val = np.ceil(mean_val)
+                                    elif decimal_handling == "Round Down (23)":
+                                        fill_val = np.floor(mean_val)
+                                    elif decimal_handling == "Round Nearest (24)":
+                                        fill_val = np.round(mean_val)
+                                    else:  # Keep Decimal
+                                        fill_val = mean_val
+                                    df[col] = df[col].fillna(fill_val)
                                     st.session_state.cleaned_data = df
-                                    st.success(f"Filled with mean: {df[col].mean():.2f}")
+                                    st.success(f"Filled with mean: {fill_val:.2f}")
                                 elif method == "Fill with Median":
-                                    df[col] = df[col].fillna(df[col].median())
+                                    median_val = df[col].median()
+                                    if decimal_handling == "Round Up (24)":
+                                        fill_val = np.ceil(median_val)
+                                    elif decimal_handling == "Round Down (23)":
+                                        fill_val = np.floor(median_val)
+                                    elif decimal_handling == "Round Nearest (24)":
+                                        fill_val = np.round(median_val)
+                                    else:  # Keep Decimal
+                                        fill_val = median_val
+                                    df[col] = df[col].fillna(fill_val)
                                     st.session_state.cleaned_data = df
-                                    st.success(f"Filled with median: {df[col].median():.2f}")
+                                    st.success(f"Filled with median: {fill_val:.2f}")
                                 elif method == "Fill with Mode":
-                                    mode_val = df[col].mode()[0] if not df[col].mode().empty else 'Unknown'
+                                    mode_val = df[col].mode()[0] if not df[col].mode().empty else 0
                                     df[col] = df[col].fillna(mode_val)
                                     st.session_state.cleaned_data = df
                                     st.success(f"Filled with mode: {mode_val}")
