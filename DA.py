@@ -301,7 +301,8 @@ with tab3:
         """)
     
     if st.session_state.data is not None:
-        df = st.session_state.cleaned_data.copy()
+        # Always work with session state data
+        df = st.session_state.cleaned_data
         
         st.markdown("### 🧹 Data Quality Overview")
         
@@ -325,20 +326,18 @@ with tab3:
         with col1:
             st.markdown("#### 🗑️ Remove Duplicates")
             if st.button("Remove Duplicate Rows"):
-                before = len(df)
-                df = df.drop_duplicates()
-                after = len(df)
-                st.session_state.cleaned_data = df.copy()
+                before = len(st.session_state.cleaned_data)
+                st.session_state.cleaned_data = st.session_state.cleaned_data.drop_duplicates()
+                after = len(st.session_state.cleaned_data)
                 st.success(f"Removed {before - after} duplicate rows!")
                 st.rerun()
         
         with col2:
             st.markdown("#### 🔧 Quick Actions")
             if st.button("Drop All Rows with ANY Missing Value"):
-                before = len(df)
-                df = df.dropna()
-                after = len(df)
-                st.session_state.cleaned_data = df.copy()
+                before = len(st.session_state.cleaned_data)
+                st.session_state.cleaned_data = st.session_state.cleaned_data.dropna()
+                after = len(st.session_state.cleaned_data)
                 st.success(f"Dropped {before - after} rows with missing values!")
                 st.rerun()
         
@@ -404,16 +403,15 @@ with tab3:
                                 if method == "Select Method":
                                     st.warning("Please select a method first!")
                                 elif method == "Drop Rows":
-                                    before = len(df)
-                                    df = df.dropna(subset=[col])
-                                    after = len(df)
-                                    st.session_state.cleaned_data = df.copy()
+                                    before = len(st.session_state.cleaned_data)
+                                    st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[col])
+                                    after = len(st.session_state.cleaned_data)
                                     st.session_state.progress['cleaning'] = True
                                     st.success(f"Dropped {before - after} rows!")
                                     st.rerun()
                                 elif method == "Fill with Mean":
                                     # Calculate mean from NON-NULL values only
-                                    mean_val = df[col].mean()
+                                    mean_val = st.session_state.cleaned_data[col].mean()
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = np.ceil(mean_val)
                                     elif decimal_handling == "Round Down (23)":
@@ -422,15 +420,13 @@ with tab3:
                                         fill_val = np.round(mean_val)
                                     else:  # Keep Decimal
                                         fill_val = mean_val
-                                    df[col] = df[col].fillna(fill_val)
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(fill_val)
                                     st.session_state.progress['cleaning'] = True
                                     st.success(f"✅ Filled with mean: {fill_val:.2f} (calculated from existing values only)")
-                                    st.info(f"💡 Mean was calculated from {df[col].notna().sum()} non-null values")
                                     st.rerun()
                                 elif method == "Fill with Median":
                                     # Calculate median from NON-NULL values only
-                                    median_val = df[col].median()
+                                    median_val = st.session_state.cleaned_data[col].median()
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = np.ceil(median_val)
                                     elif decimal_handling == "Round Down (23)":
@@ -439,42 +435,34 @@ with tab3:
                                         fill_val = np.round(median_val)
                                     else:  # Keep Decimal
                                         fill_val = median_val
-                                    df[col] = df[col].fillna(fill_val)
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(fill_val)
                                     st.session_state.progress['cleaning'] = True
                                     st.success(f"✅ Filled with median: {fill_val:.2f} (calculated from existing values only)")
-                                    st.info(f"💡 Median was calculated from {df[col].notna().sum()} non-null values")
                                     st.rerun()
                                 elif method == "Fill with Mode":
                                     # Calculate mode from NON-NULL values only
-                                    mode_val = df[col].mode()[0] if not df[col].mode().empty else 0
-                                    df[col] = df[col].fillna(mode_val)
-                                    st.session_state.cleaned_data = df.copy()
+                                    mode_val = st.session_state.cleaned_data[col].mode()[0] if not st.session_state.cleaned_data[col].mode().empty else 0
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(mode_val)
                                     st.session_state.progress['cleaning'] = True
                                     st.success(f"✅ Filled with mode: {mode_val} (calculated from existing values only)")
-                                    st.info(f"💡 Mode was calculated from {df[col].notna().sum()} non-null values")
                                     st.rerun()
                                 elif method == "Fill with Custom Value":
-                                    df[col] = df[col].fillna(custom_val)
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(custom_val)
                                     st.session_state.progress['cleaning'] = True
                                     st.success(f"Filled with: {custom_val}")
                                     st.rerun()
                                 elif method == "Fill with 'Unknown'":
-                                    df[col] = df[col].fillna('Unknown')
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna('Unknown')
                                     st.session_state.progress['cleaning'] = True
                                     st.success("Filled with 'Unknown'")
                                     st.rerun()
                                 elif method == "Forward Fill":
-                                    df[col] = df[col].fillna(method='ffill')
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='ffill')
                                     st.session_state.progress['cleaning'] = True
                                     st.success("Applied forward fill!")
                                     st.rerun()
                                 elif method == "Backward Fill":
-                                    df[col] = df[col].fillna(method='bfill')
-                                    st.session_state.cleaned_data = df.copy()
+                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='bfill')
                                     st.session_state.progress['cleaning'] = True
                                     st.success("Applied backward fill!")
                                     st.rerun()
