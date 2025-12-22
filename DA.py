@@ -17,7 +17,7 @@ st.set_page_config(
 st.markdown("""
     <style>
     .main {
-        background-color: #f0f2f6;
+        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
     }
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
@@ -28,17 +28,41 @@ st.markdown("""
         background-color: #ffffff;
         border-radius: 10px 10px 0 0;
         font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
     }
     .stTabs [aria-selected="true"] {
-        background-color: #667eea;
+        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
         color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
     .step-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
         color: white;
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 15px;
         margin: 10px 0;
+        box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+    }
+    .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+    }
+    .tooltip-icon {
+        cursor: help;
+        color: #3B82F6;
+        font-size: 18px;
+        margin-left: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -52,10 +76,20 @@ if 'objective' not in st.session_state:
     st.session_state.objective = ""
 if 'kpis' not in st.session_state:
     st.session_state.kpis = ""
+if 'progress' not in st.session_state:
+    st.session_state.progress = {
+        'requirements': False,
+        'collection': False,
+        'cleaning': False,
+        'eda': False,
+        'analysis': False,
+        'visualization': False,
+        'insights': False
+    }
 
 # Title
 st.markdown("""
-    <h1 style='text-align: center; color: #667eea; padding: 20px;'>
+    <h1 style='text-align: center; background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding: 20px; font-size: 48px;'>
         📊 Complete Data Analysis Platform
     </h1>
     <p style='text-align: center; color: #666; font-size: 18px; margin-bottom: 10px;'>
@@ -68,6 +102,24 @@ st.markdown("""
         <a href='https://www.linkedin.com/in/rahul-mishra-b71ba21b8/' target='_blank' style='margin: 0 15px; text-decoration: none;'>
             <img src='https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white' alt='LinkedIn'>
         </a>
+    </div>
+""", unsafe_allow_html=True)
+
+# Progress Indicator
+progress_text = ""
+completed = sum(st.session_state.progress.values())
+total_steps = len(st.session_state.progress)
+progress_percentage = (completed / total_steps) * 100
+
+st.markdown(f"""
+    <div style='background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+        <div style='display: flex; justify-content: space-between; margin-bottom: 10px;'>
+            <span style='font-weight: 600; color: #3B82F6;'>Overall Progress</span>
+            <span style='font-weight: 600; color: #3B82F6;'>{completed}/{total_steps} Steps Completed</span>
+        </div>
+        <div style='background: #E5E7EB; border-radius: 10px; height: 10px; overflow: hidden;'>
+            <div style='background: linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%); height: 100%; width: {progress_percentage}%; transition: width 0.5s ease;'></div>
+        </div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -85,6 +137,18 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 # ==================== TAB 1: REQUIREMENT GATHERING ====================
 with tab1:
     st.markdown('<div class="step-card"><h2>Step 1: Requirement Gathering</h2><p>Define your objective before touching any data</p></div>', unsafe_allow_html=True)
+    
+    # Tooltip
+    with st.expander("💡 Why is this important?"):
+        st.info("""
+        **Requirement gathering ensures:**
+        - Clear direction for your analysis
+        - Measurable success criteria (KPIs)
+        - Efficient use of time and resources
+        - Alignment with business goals
+        
+        **Tip:** A well-defined problem is half solved!
+        """)
     
     st.markdown("### 🎯 Define Your Business Problem")
     
@@ -122,6 +186,7 @@ with tab1:
     
     if objective and kpis:
         st.success("✅ Objective and KPIs defined! Ready to collect data.")
+        st.session_state.progress['requirements'] = True
         
         st.markdown("### 📊 Your Analysis Framework")
         st.info(f"""
@@ -138,15 +203,52 @@ with tab1:
 with tab2:
     st.markdown('<div class="step-card"><h2>Step 2: Data Collection</h2><p>Gather raw data from your identified sources</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 Data Collection Tips"):
+        st.info("""
+        **Best Practices:**
+        - Ensure data is from reliable sources
+        - Check file format compatibility (CSV recommended)
+        - Verify data permissions and privacy compliance
+        - Document data source for future reference
+        
+        **Supported Format:** CSV files only
+        """)
+    
     st.markdown("### 📥 Upload Your Dataset")
     
     uploaded_file = st.file_uploader("Choose a CSV file", type=['csv'])
     
     if uploaded_file is not None:
         try:
+            # Progress bar
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            status_text.text("Loading data... 25%")
+            progress_bar.progress(25)
+            
             df = pd.read_csv(uploaded_file)
+            
+            status_text.text("Processing columns... 50%")
+            progress_bar.progress(50)
+            
             st.session_state.data = df
             st.session_state.cleaned_data = df.copy()
+            
+            status_text.text("Analyzing data types... 75%")
+            progress_bar.progress(75)
+            
+            status_text.text("Complete! 100%")
+            progress_bar.progress(100)
+            
+            st.session_state.progress['collection'] = True
+            
+            # Clear progress indicators
+            import time
+            time.sleep(0.5)
+            progress_bar.empty()
+            status_text.empty()
             
             st.success(f"✅ Data loaded successfully! {len(df)} rows × {len(df.columns)} columns")
             
@@ -181,9 +283,50 @@ with tab2:
 with tab3:
     st.markdown('<div class="step-card"><h2>Step 3: Data Cleaning</h2><p>Transform raw data into a clean, analysis-ready dataset</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 Data Cleaning Best Practices"):
+        st.info("""
+        **Why Clean Data?**
+        - Poor quality data leads to poor insights
+        - 80% of analysis time is spent on cleaning
+        - Clean data = Accurate results
+        
+        **Common Issues:**
+        - Missing values (handle column by column)
+        - Duplicate records (remove carefully)
+        - Outliers (decide case by case)
+        - Inconsistent formatting
+        
+        **Tip:** Always review changes before applying!
+        """)
+    
     if st.session_state.data is not None:
         df = st.session_state.cleaned_data.copy()
         
+        # Download Button for Original Data
+        st.markdown("### 📥 Download Options")
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_original = st.session_state.data.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Original Data",
+                data=csv_original,
+                file_name="original_data.csv",
+                mime="text/csv",
+                help="Download the data as it was originally uploaded"
+            )
+        with col2:
+            csv_cleaned = df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Cleaned Data",
+                data=csv_cleaned,
+                file_name="cleaned_data.csv",
+                mime="text/csv",
+                help="Download the data after cleaning operations",
+                type="primary"
+            )
+        
+        st.markdown("---")
         st.markdown("### 🧹 Data Quality Overview")
         
         col1, col2, col3 = st.columns(3)
@@ -286,8 +429,10 @@ with tab3:
                                     before = len(df)
                                     df = df.dropna(subset=[col])
                                     st.session_state.cleaned_data = df
+                                    st.session_state.progress['cleaning'] = True
                                     st.success(f"Dropped {before - len(df)} rows!")
                                 elif method == "Fill with Mean":
+                                    # Calculate mean from NON-NULL values only
                                     mean_val = df[col].mean()
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = np.ceil(mean_val)
@@ -299,8 +444,11 @@ with tab3:
                                         fill_val = mean_val
                                     df[col] = df[col].fillna(fill_val)
                                     st.session_state.cleaned_data = df
-                                    st.success(f"Filled with mean: {fill_val:.2f}")
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled with mean: {fill_val:.2f} (calculated from existing values only)")
+                                    st.info(f"💡 Mean was calculated from {df[col].notna().sum()} non-null values")
                                 elif method == "Fill with Median":
+                                    # Calculate median from NON-NULL values only
                                     median_val = df[col].median()
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = np.ceil(median_val)
@@ -312,27 +460,36 @@ with tab3:
                                         fill_val = median_val
                                     df[col] = df[col].fillna(fill_val)
                                     st.session_state.cleaned_data = df
-                                    st.success(f"Filled with median: {fill_val:.2f}")
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled with median: {fill_val:.2f} (calculated from existing values only)")
+                                    st.info(f"💡 Median was calculated from {df[col].notna().sum()} non-null values")
                                 elif method == "Fill with Mode":
+                                    # Calculate mode from NON-NULL values only
                                     mode_val = df[col].mode()[0] if not df[col].mode().empty else 0
                                     df[col] = df[col].fillna(mode_val)
                                     st.session_state.cleaned_data = df
-                                    st.success(f"Filled with mode: {mode_val}")
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled with mode: {mode_val} (calculated from existing values only)")
+                                    st.info(f"💡 Mode was calculated from {df[col].notna().sum()} non-null values")
                                 elif method == "Fill with Custom Value":
                                     df[col] = df[col].fillna(custom_val)
                                     st.session_state.cleaned_data = df
+                                    st.session_state.progress['cleaning'] = True
                                     st.success(f"Filled with: {custom_val}")
                                 elif method == "Fill with 'Unknown'":
                                     df[col] = df[col].fillna('Unknown')
                                     st.session_state.cleaned_data = df
+                                    st.session_state.progress['cleaning'] = True
                                     st.success("Filled with 'Unknown'")
                                 elif method == "Forward Fill":
                                     df[col] = df[col].fillna(method='ffill')
                                     st.session_state.cleaned_data = df
+                                    st.session_state.progress['cleaning'] = True
                                     st.success("Applied forward fill!")
                                 elif method == "Backward Fill":
                                     df[col] = df[col].fillna(method='bfill')
                                     st.session_state.cleaned_data = df
+                                    st.session_state.progress['cleaning'] = True
                                     st.success("Applied backward fill!")
             else:
                 # If too many columns, show dropdown selection
@@ -378,8 +535,24 @@ with tab3:
 with tab4:
     st.markdown('<div class="step-card"><h2>Step 4: Exploratory Data Analysis</h2><p>Discover patterns, trends, and correlations in your data</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 What is EDA?"):
+        st.info("""
+        **Exploratory Data Analysis helps you:**
+        - Understand data distribution and patterns
+        - Identify relationships between variables
+        - Detect outliers and anomalies
+        - Make informed decisions for deeper analysis
+        
+        **Key Techniques:**
+        - Descriptive statistics (mean, median, std)
+        - Visualizations (histograms, box plots)
+        - Correlation analysis
+        """)
+    
     if st.session_state.cleaned_data is not None:
         df = st.session_state.cleaned_data
+        st.session_state.progress['eda'] = True
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         
         st.markdown("### 📊 Descriptive Statistics")
@@ -429,8 +602,25 @@ with tab4:
 with tab5:
     st.markdown('<div class="step-card"><h2>Step 5: Data Analysis & Modeling</h2><p>Apply statistical techniques to extract insights</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 Types of Analysis"):
+        st.info("""
+        **1. Descriptive:** What happened in the past?
+        - Summary statistics, distributions
+        
+        **2. Diagnostic:** Why did it happen?
+        - Correlation, causation analysis
+        
+        **3. Comparative:** How do segments differ?
+        - Group comparisons, A/B testing
+        
+        **4. Trend:** What patterns exist over time?
+        - Time series, seasonality
+        """)
+    
     if st.session_state.cleaned_data is not None:
         df = st.session_state.cleaned_data
+        st.session_state.progress['analysis'] = True
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         
         analysis_type = st.selectbox(
@@ -541,8 +731,27 @@ with tab5:
 with tab6:
     st.markdown('<div class="step-card"><h2>Step 6: Data Visualization</h2><p>Translate findings into compelling visual stories</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 Visualization Best Practices"):
+        st.info("""
+        **Choose the right chart:**
+        - **Line Chart:** Trends over time, continuous data
+        - **Bar Chart:** Comparisons across categories
+        - **Scatter Plot:** Relationships between two variables
+        - **Pie Chart:** Part-to-whole relationships (use sparingly)
+        - **Heatmap:** Correlation matrices, density patterns
+        - **Area Chart:** Cumulative totals over time
+        
+        **Design Tips:**
+        - Keep it simple and focused
+        - Use appropriate colors
+        - Label axes clearly
+        - Add context with titles and legends
+        """)
+    
     if st.session_state.cleaned_data is not None:
         df = st.session_state.cleaned_data
+        st.session_state.progress['visualization'] = True
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         
         st.markdown("### 📊 Create Custom Visualizations")
@@ -588,18 +797,20 @@ with tab6:
         with col2:
             st.markdown("#### 💡 Visualization Best Practices")
             st.info("""
-            **Choose the right chart:**
-            - **Line Charts:** Trends over time
-            - **Bar Charts:** Comparisons across categories
-            - **Scatter Plots:** Relationships between variables
-            - **Pie Charts:** Part-to-whole relationships
-            - **Heatmaps:** Correlation or density patterns
+            **Chart Selection Guide:**
             
-            **Remember:**
-            - Keep it simple and focused
-            - Use appropriate colors
-            - Label axes clearly
-            - Add context with titles
+            📈 **Line Charts** → Trends over time
+            📊 **Bar Charts** → Category comparisons
+            🔵 **Scatter Plots** → Variable relationships
+            🥧 **Pie Charts** → Proportions (max 5-7 slices)
+            🌡️ **Heatmaps** → Correlation/density patterns
+            📐 **Area Charts** → Cumulative values
+            
+            **Pro Tips:**
+            - Avoid 3D charts (hard to read)
+            - Use color meaningfully
+            - Don't overload with data
+            - Tell a story with your viz
             """)
     else:
         st.warning("⚠️ Please clean your data in Step 3 first")
@@ -608,8 +819,27 @@ with tab6:
 with tab7:
     st.markdown('<div class="step-card"><h2>Step 7: Communication & Implementation</h2><p>Present findings and actionable recommendations</p></div>', unsafe_allow_html=True)
     
+    # Tooltip
+    with st.expander("💡 Creating Actionable Insights"):
+        st.info("""
+        **Good insights are:**
+        - Specific and measurable
+        - Supported by data evidence
+        - Actionable (can be implemented)
+        - Relevant to business objectives
+        - Clear and concise
+        
+        **Example Good Insight:**
+        "Sales dropped 23% in Midwest region due to increased competition. 
+        Recommendation: Increase digital ad spend by 15% targeting this region."
+        
+        **vs Bad Insight:**
+        "Sales are down. Need more marketing."
+        """)
+    
     if st.session_state.cleaned_data is not None:
         df = st.session_state.cleaned_data
+        st.session_state.progress['insights'] = True
         
         st.markdown("### 📝 Generate Analysis Report")
         
