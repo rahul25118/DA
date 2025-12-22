@@ -303,30 +303,6 @@ with tab3:
     if st.session_state.data is not None:
         df = st.session_state.cleaned_data.copy()
         
-        # Download Button for Original Data
-        st.markdown("### 📥 Download Options")
-        col1, col2 = st.columns(2)
-        with col1:
-            csv_original = st.session_state.data.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Original Data",
-                data=csv_original,
-                file_name="original_data.csv",
-                mime="text/csv",
-                help="Download the data as it was originally uploaded"
-            )
-        with col2:
-            csv_cleaned = df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Cleaned Data",
-                data=csv_cleaned,
-                file_name="cleaned_data.csv",
-                mime="text/csv",
-                help="Download the data after cleaning operations",
-                type="primary"
-            )
-        
-        st.markdown("---")
         st.markdown("### 🧹 Data Quality Overview")
         
         col1, col2, col3 = st.columns(3)
@@ -527,6 +503,33 @@ with tab3:
         
         st.markdown("### 📋 Cleaned Data Preview")
         st.dataframe(df.head(10), use_container_width=True)
+        
+        # Download Buttons at the bottom after all operations
+        st.markdown("---")
+        st.markdown("### 📥 Download Your Data")
+        st.info("💡 Make sure you've applied all cleaning operations before downloading!")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_original = st.session_state.data.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Original Data",
+                data=csv_original,
+                file_name="original_data.csv",
+                mime="text/csv",
+                help="Download the data as it was originally uploaded (before any cleaning)"
+            )
+        with col2:
+            # Use the current state of cleaned_data from session
+            csv_cleaned = st.session_state.cleaned_data.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Cleaned Data",
+                data=csv_cleaned,
+                file_name="cleaned_data.csv",
+                mime="text/csv",
+                help="Download the data with all cleaning operations applied",
+                type="primary"
+            )
         
     else:
         st.warning("⚠️ Please upload data in Step 2 first")
