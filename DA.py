@@ -403,105 +403,70 @@ with tab3:
                                 if method == "Select Method":
                                     st.warning("Please select a method first!")
                                     
-                                else:
-                                    # Get a fresh copy of cleaned data
-                                    temp_df = st.session_state.cleaned_data.copy()
+                                elif method == "Drop Rows":
+                                    before = len(st.session_state.cleaned_data)
+                                    st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[col]).copy()
+                                    after = len(st.session_state.cleaned_data)
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Dropped {before - after} rows! Click Download to get updated data.")
                                     
-                                    if method == "Drop Rows":
-                                        before = len(temp_df)
-                                        temp_df = temp_df.dropna(subset=[col])
-                                        after = len(temp_df)
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"Dropped {before - after} rows!")
-                                        st.rerun()
-                                        
-                                    elif method == "Fill with Mean":
-                                        # Calculate mean from NON-NULL values only
-                                        mean_val = temp_df[col].mean()
-                                        if decimal_handling == "Round Up (24)":
-                                            fill_val = np.ceil(mean_val)
-                                        elif decimal_handling == "Round Down (23)":
-                                            fill_val = np.floor(mean_val)
-                                        elif decimal_handling == "Round Nearest (24)":
-                                            fill_val = np.round(mean_val)
-                                        else:  # Keep Decimal
-                                            fill_val = mean_val
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(fill_val)
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Filled {col} with mean: {fill_val:.2f}")
-                                        st.rerun()
-                                        
-                                    elif method == "Fill with Median":
-                                        # Calculate median from NON-NULL values only
-                                        median_val = temp_df[col].median()
-                                        if decimal_handling == "Round Up (24)":
-                                            fill_val = np.ceil(median_val)
-                                        elif decimal_handling == "Round Down (23)":
-                                            fill_val = np.floor(median_val)
-                                        elif decimal_handling == "Round Nearest (24)":
-                                            fill_val = np.round(median_val)
-                                        else:  # Keep Decimal
-                                            fill_val = median_val
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(fill_val)
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Filled {col} with median: {fill_val:.2f}")
-                                        st.rerun()
-                                        
-                                    elif method == "Fill with Mode":
-                                        # Calculate mode from NON-NULL values only
-                                        mode_series = temp_df[col].mode()
-                                        mode_val = mode_series[0] if len(mode_series) > 0 else 0
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(mode_val)
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Filled {col} with mode: {mode_val}")
-                                        st.rerun()
-                                        
-                                    elif method == "Fill with Custom Value":
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(custom_val)
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Filled {col} with: {custom_val}")
-                                        st.rerun()
-                                        
-                                    elif method == "Fill with 'Unknown'":
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna('Unknown')
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Filled {col} with 'Unknown'")
-                                        st.rerun()
-                                        
-                                    elif method == "Forward Fill":
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(method='ffill')
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Applied forward fill to {col}")
-                                        st.rerun()
-                                        
-                                    elif method == "Backward Fill":
-                                        # Fill the missing values
-                                        temp_df[col] = temp_df[col].fillna(method='bfill')
-                                        # Save back to session state
-                                        st.session_state.cleaned_data = temp_df
-                                        st.session_state.progress['cleaning'] = True
-                                        st.success(f"✅ Applied backward fill to {col}")
-                                        st.rerun()
+                                elif method == "Fill with Mean":
+                                    mean_val = st.session_state.cleaned_data[col].mean()
+                                    if decimal_handling == "Round Up (24)":
+                                        fill_val = float(np.ceil(mean_val))
+                                    elif decimal_handling == "Round Down (23)":
+                                        fill_val = float(np.floor(mean_val))
+                                    elif decimal_handling == "Round Nearest (24)":
+                                        fill_val = float(np.round(mean_val))
+                                    else:
+                                        fill_val = float(mean_val)
+                                    
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(fill_val)
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled {col} with mean: {fill_val:.2f}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Fill with Median":
+                                    median_val = st.session_state.cleaned_data[col].median()
+                                    if decimal_handling == "Round Up (24)":
+                                        fill_val = float(np.ceil(median_val))
+                                    elif decimal_handling == "Round Down (23)":
+                                        fill_val = float(np.floor(median_val))
+                                    elif decimal_handling == "Round Nearest (24)":
+                                        fill_val = float(np.round(median_val))
+                                    else:
+                                        fill_val = float(median_val)
+                                    
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(fill_val)
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled {col} with median: {fill_val:.2f}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Fill with Mode":
+                                    mode_series = st.session_state.cleaned_data[col].mode()
+                                    mode_val = mode_series[0] if len(mode_series) > 0 else 0
+                                    
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(mode_val)
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled {col} with mode: {mode_val}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Fill with Custom Value":
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(custom_val)
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled {col} with: {custom_val}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Fill with 'Unknown'":
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna('Unknown')
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Filled {col} with 'Unknown'. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Forward Fill":
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(method='ffill')
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Applied forward fill to {col}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    
+                                elif method == "Backward Fill":
+                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(method='bfill')
+                                    st.session_state.progress['cleaning'] = True
+                                    st.success(f"✅ Applied backward fill to {col}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
             else:
                 # If too many columns, show dropdown selection
                 st.warning("Too many columns with missing values. Select specific columns to treat:")
@@ -537,16 +502,22 @@ with tab3:
             st.success("🎉 No missing values in the dataset!")
         
         st.markdown("### 📋 Cleaned Data Preview")
-        st.dataframe(df.head(10), use_container_width=True)
+        st.dataframe(st.session_state.cleaned_data.head(10), use_container_width=True)
         
         # Download Buttons at the bottom after all operations
         st.markdown("---")
         st.markdown("### 📥 Download Your Data")
-        st.info("💡 Make sure you've applied all cleaning operations before downloading!")
         
-        col1, col2 = st.columns(2)
+        # Show current missing values count
+        total_missing = st.session_state.cleaned_data.isnull().sum().sum()
+        if total_missing == 0:
+            st.success(f"✅ Your data is clean! No missing values remaining.")
+        else:
+            st.warning(f"⚠️ Still {total_missing} missing values in the dataset. Apply cleaning operations above.")
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            csv_original = st.session_state.data.to_csv(index=False)
+            csv_original = st.session_state.data.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Original Data",
                 data=csv_original,
@@ -555,8 +526,8 @@ with tab3:
                 help="Download the data as it was originally uploaded (before any cleaning)"
             )
         with col2:
-            # Use the current state of cleaned_data from session
-            csv_cleaned = st.session_state.cleaned_data.to_csv(index=False)
+            # Get the CURRENT state of cleaned_data
+            csv_cleaned = st.session_state.cleaned_data.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Cleaned Data",
                 data=csv_cleaned,
@@ -565,6 +536,10 @@ with tab3:
                 help="Download the data with all cleaning operations applied",
                 type="primary"
             )
+        with col3:
+            if st.button("🔄 Refresh Data", help="Click this before downloading to ensure latest changes"):
+                st.success("✅ Data refreshed! Now click Download Cleaned Data")
+                st.rerun()
         
     else:
         st.warning("⚠️ Please upload data in Step 2 first")
