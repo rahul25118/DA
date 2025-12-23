@@ -64,12 +64,29 @@ st.markdown("""
         font-size: 18px;
         margin-left: 5px;
     }
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 2px;
+    }
+    .status-complete {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
     .change-history {
         background: #f8f9fa;
         border-left: 4px solid #3B82F6;
         padding: 10px;
         margin: 5px 0;
         border-radius: 5px;
+        font-size: 14px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -95,6 +112,8 @@ if 'progress' not in st.session_state:
     }
 if 'applied_changes' not in st.session_state:
     st.session_state.applied_changes = []
+if 'column_treatment_status' not in st.session_state:
+    st.session_state.column_treatment_status = {}
 
 # Title
 st.markdown("""
@@ -115,7 +134,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Progress Indicator
-progress_text = ""
 completed = sum(st.session_state.progress.values())
 total_steps = len(st.session_state.progress)
 progress_percentage = (completed / total_steps) * 100
@@ -241,6 +259,9 @@ with tab2:
             
             st.session_state.data = df
             st.session_state.cleaned_data = df.copy()
+            # Reset column treatment status
+            st.session_state.column_treatment_status = {}
+            st.session_state.applied_changes = []
             
             status_text.text("Analyzing data types... 75%")
             progress_bar.progress(75)
@@ -275,7 +296,8 @@ with tab2:
                 'Column': df.columns,
                 'Data Type': df.dtypes.values,
                 'Non-Null Count': df.count().values,
-                'Null Count': df.isnull().sum().values
+                'Null Count': df.isnull().sum().values,
+                'Null %': (df.isnull().sum().values / len(df) * 100).round(2)
             })
             st.dataframe(col_info, use_container_width=True)
             
@@ -305,15 +327,18 @@ with tab3:
         """)
     
     if st.session_state.data is not None:
-        # Get fresh data from session state
+        # Get the current cleaned data
+        if st.session_state.cleaned_data is None:
+            st.session_state.cleaned_data = st.session_state.data.copy()
+        
         df = st.session_state.cleaned_data
         
         st.markdown("### 🧹 Data Quality Overview")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             duplicates = df.duplicated().sum()
-            st.metric("Duplicate Rows", duplicates, delta=f"-{duplicates} to remove")
+            st.metric("Duplicate Rows", duplicates, delta=f"-{duplicates} to remove" if duplicates > 0 else None)
         with col2:
             missing = df.isnull().sum().sum()
             st.metric("Missing Values", missing)
@@ -321,358 +346,419 @@ with tab3:
             total_cells = df.shape[0] * df.shape[1]
             completeness = ((total_cells - missing) / total_cells * 100)
             st.metric("Data Completeness", f"{completeness:.1f}%")
+        with col4:
+            treated_cols = len([c for c, status in st.session_state.column_treatment_status.items() if status.get('treated', False)])
+            st.metric("Treated Columns", treated_cols)
         
         st.markdown("---")
         
-        # Cleaning Operations
-        col1, col2 = st.columns(2)
+        # Quick Actions
+        st.markdown("### ⚡ Quick Actions")
+        
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("#### 🗑️ Remove Duplicates")
-            if st.button("Remove Duplicate Rows"):
-                before = len(st.session_state.cleaned_data)
-                st.session_state.cleaned_data = st.session_state.cleaned_data.drop_duplicates()
+            if st.button("🗑️ Remove All Duplicates", use_container_width=True):
+                before = len(df)
+                st.session_state.cleaned_data = df.drop_duplicates()
                 after = len(st.session_state.cleaned_data)
-                st.session_state.applied_changes.append(f"Removed {before - after} duplicate rows")
-                st.success(f"Removed {before - after} duplicate rows!")
+                removed = before - after
+                st.session_state.applied_changes.append(f"Removed {removed} duplicate rows")
+                st.success(f"✅ Removed {removed} duplicate rows!")
                 st.rerun()
         
         with col2:
-            st.markdown("#### 🔧 Quick Actions")
-            if st.button("Drop All Rows with ANY Missing Value"):
-                before = len(st.session_state.cleaned_data)
-                st.session_state.cleaned_data = st.session_state.cleaned_data.dropna()
+            if st.button("🧹 Drop All Missing Rows", use_container_width=True):
+                before = len(df)
+                st.session_state.cleaned_data = df.dropna()
                 after = len(st.session_state.cleaned_data)
-                st.session_state.applied_changes.append(f"Dropped {before - after} rows with any missing values")
-                st.success(f"Dropped {before - after} rows with missing values!")
+                removed = before - after
+                st.session_state.applied_changes.append(f"Dropped {removed} rows with any missing values")
+                # Mark all columns as treated
+                for col in df.columns:
+                    if col not in st.session_state.column_treatment_status:
+                        st.session_state.column_treatment_status[col] = {}
+                    st.session_state.column_treatment_status[col]['treated'] = True
+                    st.session_state.column_treatment_status[col]['method'] = 'Drop Rows'
+                st.success(f"✅ Dropped {removed} rows with missing values!")
+                st.rerun()
+        
+        with col3:
+            if st.button("🔄 Reset All Changes", use_container_width=True):
+                st.session_state.cleaned_data = st.session_state.data.copy()
+                st.session_state.column_treatment_status = {}
+                st.session_state.applied_changes = []
+                st.success("✅ All changes reset to original data!")
                 st.rerun()
         
         # Column-by-Column Missing Value Treatment
         st.markdown("---")
         st.markdown("### 🎯 Column-by-Column Missing Value Treatment")
         
-        # Get FRESH columns with missing values from session state
-        cols_with_missing = st.session_state.cleaned_data.columns[
-            st.session_state.cleaned_data.isnull().any()
-        ].tolist()
+        # Get columns with missing values
+        cols_with_missing = df.columns[df.isnull().any()].tolist()
         
         if len(cols_with_missing) > 0:
-            # Show current missing values summary
+            # Show current status
             st.markdown("#### 📊 Current Missing Values Status")
             
-            current_missing = st.session_state.cleaned_data.isnull().sum()
-            current_missing = current_missing[current_missing > 0]
-            
-            col_summary = pd.DataFrame({
-                'Column': current_missing.index,
-                'Missing Count': current_missing.values,
-                'Missing %': (current_missing.values / len(st.session_state.cleaned_data) * 100).round(2)
-            })
-            st.dataframe(col_summary, use_container_width=True)
-            
-            st.info(f"Found {len(cols_with_missing)} columns with missing values. Treat them individually below:")
-            
-            # Create tabs for each column with missing values (max 6 for better UI)
-            if len(cols_with_missing) <= 6:
-                column_tabs = st.tabs([f"📊 {col}" for col in cols_with_missing])
+            # Create a summary table
+            summary_data = []
+            for col in cols_with_missing:
+                missing_count = df[col].isnull().sum()
+                missing_percent = (missing_count / len(df) * 100)
+                treatment_status = st.session_state.column_treatment_status.get(col, {}).get('status', 'Pending')
+                treatment_method = st.session_state.column_treatment_status.get(col, {}).get('method', 'Not treated')
                 
-                for idx, col in enumerate(cols_with_missing):
-                    with column_tabs[idx]:
-                        # Get FRESH data for this column
-                        col_missing_count = st.session_state.cleaned_data[col].isnull().sum()
-                        col_type = st.session_state.cleaned_data[col].dtype
+                summary_data.append({
+                    'Column': col,
+                    'Missing Count': missing_count,
+                    'Missing %': f"{missing_percent:.1f}%",
+                    'Data Type': str(df[col].dtype),
+                    'Status': treatment_status,
+                    'Method': treatment_method
+                })
+            
+            summary_df = pd.DataFrame(summary_data)
+            st.dataframe(summary_df, use_container_width=True)
+            
+            st.info(f"Found **{len(cols_with_missing)} columns** with missing values. Select a column to treat:")
+            
+            # Column selector
+            selected_col = st.selectbox(
+                "Select a column to treat",
+                cols_with_missing,
+                key="col_selector"
+            )
+            
+            if selected_col:
+                with st.container():
+                    st.markdown(f"#### 📊 Treating Column: **{selected_col}**")
+                    
+                    # Get current column info
+                    col_missing = df[selected_col].isnull().sum()
+                    col_missing_percent = (col_missing / len(df) * 100)
+                    col_type = df[selected_col].dtype
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**Column Information:**")
+                        st.write(f"**Data Type:** {col_type}")
+                        st.write(f"**Missing Values:** {col_missing} ({col_missing_percent:.1f}%)")
                         
-                        st.markdown(f"**Missing Values:** {col_missing_count} ({col_missing_count/len(st.session_state.cleaned_data)*100:.1f}%)")
-                        st.markdown(f"**Data Type:** {col_type}")
-                        
-                        # Show sample values
-                        col_left, col_right = st.columns(2)
-                        
-                        with col_left:
+                        if col_missing < len(df):
                             st.markdown("**Sample Values:**")
-                            if col_missing_count < len(st.session_state.cleaned_data):
-                                non_missing = st.session_state.cleaned_data[col].dropna()
-                                if len(non_missing) > 0:
-                                    sample_vals = non_missing.head(5).tolist()
-                                    st.write(sample_vals)
-                                else:
-                                    st.write("All values are missing")
-                            else:
-                                st.write("All values are missing")
-                        
-                        with col_right:
-                            # Show statistics for numeric columns
-                            if pd.api.types.is_numeric_dtype(col_type) and col_missing_count < len(st.session_state.cleaned_data):
-                                st.markdown("**Statistics:**")
-                                stats_data = {
-                                    'Mean': st.session_state.cleaned_data[col].mean(),
-                                    'Median': st.session_state.cleaned_data[col].median(),
-                                    'Std Dev': st.session_state.cleaned_data[col].std(),
-                                    'Min': st.session_state.cleaned_data[col].min(),
-                                    'Max': st.session_state.cleaned_data[col].max()
-                                }
-                                for stat_name, stat_value in stats_data.items():
-                                    st.text(f"{stat_name}: {stat_value:.2f}")
-                        
-                        st.markdown("---")
-                        st.markdown("#### ⚙️ Treatment Options")
-                        
-                        # Method selection based on data type
+                            non_missing = df[selected_col].dropna()
+                            if len(non_missing) > 0:
+                                st.write(non_missing.head(5).tolist())
+                    
+                    with col2:
                         if pd.api.types.is_numeric_dtype(col_type):
-                            method = st.selectbox(
-                                f"Select treatment method for {col}",
-                                ["Select Method", "Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with 0", "Fill with Custom Value", "Forward Fill", "Backward Fill"],
-                                key=f"method_{col}_{col_missing_count}"  # Dynamic key to force refresh
-                            )
-                            
-                            if method == "Fill with Custom Value":
-                                custom_val = st.number_input(
-                                    f"Enter value to fill missing {col}",
-                                    value=0.0,
-                                    key=f"custom_{col}"
-                                )
-                            
-                        else:  # Categorical/Object type
-                            method = st.selectbox(
-                                f"Select treatment method for {col}",
-                                ["Select Method", "Drop Rows", "Fill with Mode", "Fill with 'Unknown'", "Fill with 'Missing'", "Fill with Custom Value", "Forward Fill", "Backward Fill"],
-                                key=f"method_{col}_{col_missing_count}"
-                            )
-                            
-                            if method == "Fill with Custom Value":
-                                custom_val = st.text_input(
-                                    f"Enter value to fill missing {col}",
-                                    value="",
-                                    key=f"custom_{col}"
-                                )
+                            st.markdown("**Statistics:**")
+                            stats = {
+                                'Mean': df[selected_col].mean(),
+                                'Median': df[selected_col].median(),
+                                'Std Dev': df[selected_col].std(),
+                                'Min': df[selected_col].min(),
+                                'Max': df[selected_col].max()
+                            }
+                            for stat_name, stat_value in stats.items():
+                                st.write(f"**{stat_name}:** {stat_value:.2f}")
+                    
+                    st.markdown("---")
+                    st.markdown("#### ⚙️ Select Treatment Method")
+                    
+                    # Method selection based on data type
+                    if pd.api.types.is_numeric_dtype(col_type):
+                        method = st.radio(
+                            f"Choose method for '{selected_col}'",
+                            ["Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with 0", 
+                             "Fill with Custom Value", "Forward Fill", "Backward Fill", "Drop Rows"],
+                            key=f"method_{selected_col}"
+                        )
                         
-                        # Apply and Reset buttons
-                        apply_col, reset_col = st.columns([1, 1])
+                        if method == "Fill with Custom Value":
+                            custom_val = st.number_input(
+                                "Enter custom value:",
+                                value=0.0,
+                                key=f"custom_{selected_col}"
+                            )
+                    
+                    else:  # Categorical/Object type
+                        method = st.radio(
+                            f"Choose method for '{selected_col}'",
+                            ["Fill with Mode", "Fill with 'Unknown'", "Fill with 'Missing'", 
+                             "Fill with Custom Value", "Forward Fill", "Backward Fill", "Drop Rows"],
+                            key=f"method_{selected_col}"
+                        )
                         
-                        with apply_col:
-                            if st.button(f"Apply to {col}", 
-                                       key=f"apply_{col}_{col_missing_count}",
-                                       type="primary"):
+                        if method == "Fill with Custom Value":
+                            custom_val = st.text_input(
+                                "Enter custom value:",
+                                value="",
+                                key=f"custom_{selected_col}"
+                            )
+                    
+                    # Apply button
+                    if st.button(f"✅ Apply Treatment to '{selected_col}'", type="primary", use_container_width=True):
+                        try:
+                            if method == "Drop Rows":
+                                before = len(st.session_state.cleaned_data)
+                                st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[selected_col])
+                                after = len(st.session_state.cleaned_data)
+                                removed = before - after
                                 
-                                if method == "Select Method":
-                                    st.warning("Please select a method first!")
-                                    
-                                elif method == "Drop Rows":
-                                    before = len(st.session_state.cleaned_data)
-                                    st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[col])
-                                    after = len(st.session_state.cleaned_data)
-                                    dropped = before - after
-                                    st.session_state.applied_changes.append(f"Dropped {dropped} rows for column '{col}'")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Dropped {dropped} rows with missing values in '{col}'")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with Mean":
-                                    mean_val = st.session_state.cleaned_data[col].mean()
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(mean_val)
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with mean: {mean_val:.2f}")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with mean: {mean_val:.2f}")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with Median":
-                                    median_val = st.session_state.cleaned_data[col].median()
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(median_val)
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with median: {median_val:.2f}")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with median: {median_val:.2f}")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with Mode":
-                                    mode_series = st.session_state.cleaned_data[col].mode()
-                                    mode_val = mode_series[0] if len(mode_series) > 0 else 0
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(mode_val)
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with mode: {mode_val}")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with mode: {mode_val}")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with 0":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(0)
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with 0")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with 0")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with 'Unknown'":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna('Unknown')
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with 'Unknown'")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with 'Unknown'")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with 'Missing'":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna('Missing')
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with 'Missing'")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with 'Missing'")
-                                    st.rerun()
-                                    
-                                elif method == "Fill with Custom Value":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(custom_val)
-                                    st.session_state.applied_changes.append(f"Filled column '{col}' with custom value: {custom_val}")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled '{col}' with custom value: {custom_val}")
-                                    st.rerun()
-                                    
-                                elif method == "Forward Fill":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='ffill')
-                                    st.session_state.applied_changes.append(f"Applied forward fill to column '{col}'")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Applied forward fill to '{col}'")
-                                    st.rerun()
-                                    
-                                elif method == "Backward Fill":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='bfill')
-                                    st.session_state.applied_changes.append(f"Applied backward fill to column '{col}'")
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Applied backward fill to '{col}'")
-                                    st.rerun()
-                        
-                        with reset_col:
-                            if st.button(f"Reset {col}", 
-                                       key=f"reset_{col}",
-                                       help="Reset this column to original values"):
-                                if col in st.session_state.data.columns:
-                                    st.session_state.cleaned_data[col] = st.session_state.data[col]
-                                    st.session_state.applied_changes.append(f"Reset column '{col}' to original")
-                                    st.success(f"✅ Reset '{col}' to original values")
-                                    st.rerun()
-            
-            else:
-                # If too many columns, show dropdown selection
-                st.warning(f"Too many columns with missing values ({len(cols_with_missing)}). Select specific columns to treat:")
-                selected_cols = st.multiselect("Select columns to treat", cols_with_missing)
-                
-                for col in selected_cols:
-                    with st.expander(f"📊 {col}"):
-                        # Get fresh data for selected column
-                        col_missing_count = st.session_state.cleaned_data[col].isnull().sum()
-                        col_type = st.session_state.cleaned_data[col].dtype
-                        
-                        st.markdown(f"**Missing:** {col_missing_count} values")
-                        
-                        if pd.api.types.is_numeric_dtype(col_type):
-                            method = st.selectbox(
-                                f"Method for {col}",
-                                ["Select Method", "Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with 0", "Custom Value"],
-                                key=f"m_{col}_{col_missing_count}"
-                            )
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Drop Rows',
+                                    'status': 'Completed',
+                                    'details': f'Removed {removed} rows'
+                                }
+                                st.session_state.applied_changes.append(f"Dropped {removed} rows for column '{selected_col}'")
+                                
+                                st.success(f"✅ Dropped {removed} rows with missing values in '{selected_col}'")
                             
-                            if method == "Custom Value":
-                                custom_val = st.number_input(f"Custom value for {col}", key=f"c_{col}")
-                        
-                        else:
-                            method = st.selectbox(
-                                f"Method for {col}",
-                                ["Select Method", "Drop Rows", "Fill with Mode", "Fill with 'Unknown'", "Custom Value"],
-                                key=f"m_{col}_{col_missing_count}"
-                            )
+                            elif method == "Fill with Mean":
+                                mean_val = st.session_state.cleaned_data[selected_col].mean()
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(mean_val)
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Fill with Mean',
+                                    'status': 'Completed',
+                                    'details': f'Filled with mean: {mean_val:.2f}'
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with mean: {mean_val:.2f}")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with mean: {mean_val:.2f}")
                             
-                            if method == "Custom Value":
-                                custom_val = st.text_input(f"Custom value for {col}", key=f"c_{col}")
-                        
-                        if st.button(f"Apply to {col}", key=f"a_{col}"):
-                            # Similar apply logic as above
-                            # ... [apply logic for selected columns] ...
+                            elif method == "Fill with Median":
+                                median_val = st.session_state.cleaned_data[selected_col].median()
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(median_val)
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Fill with Median',
+                                    'status': 'Completed',
+                                    'details': f'Filled with median: {median_val:.2f}'
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with median: {median_val:.2f}")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with median: {median_val:.2f}")
+                            
+                            elif method == "Fill with Mode":
+                                mode_series = st.session_state.cleaned_data[selected_col].mode()
+                                mode_val = mode_series[0] if len(mode_series) > 0 else 0
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(mode_val)
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Fill with Mode',
+                                    'status': 'Completed',
+                                    'details': f'Filled with mode: {mode_val}'
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with mode: {mode_val}")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with mode: {mode_val}")
+                            
+                            elif method == "Fill with 0":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(0)
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Fill with 0',
+                                    'status': 'Completed',
+                                    'details': 'Filled with 0'
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with 0")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with 0")
+                            
+                            elif method == "Fill with 'Unknown'":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna('Unknown')
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': "Fill with 'Unknown'",
+                                    'status': 'Completed',
+                                    'details': "Filled with 'Unknown'"
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with 'Unknown'")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with 'Unknown'")
+                            
+                            elif method == "Fill with 'Missing'":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna('Missing')
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': "Fill with 'Missing'",
+                                    'status': 'Completed',
+                                    'details': "Filled with 'Missing'"
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with 'Missing'")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with 'Missing'")
+                            
+                            elif method == "Fill with Custom Value":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(custom_val)
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Fill with Custom Value',
+                                    'status': 'Completed',
+                                    'details': f'Filled with: {custom_val}'
+                                }
+                                st.session_state.applied_changes.append(f"Filled column '{selected_col}' with custom value: {custom_val}")
+                                
+                                st.success(f"✅ Filled '{selected_col}' with custom value: {custom_val}")
+                            
+                            elif method == "Forward Fill":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(method='ffill')
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Forward Fill',
+                                    'status': 'Completed',
+                                    'details': 'Applied forward fill'
+                                }
+                                st.session_state.applied_changes.append(f"Applied forward fill to column '{selected_col}'")
+                                
+                                st.success(f"✅ Applied forward fill to '{selected_col}'")
+                            
+                            elif method == "Backward Fill":
+                                st.session_state.cleaned_data[selected_col] = st.session_state.cleaned_data[selected_col].fillna(method='bfill')
+                                
+                                st.session_state.column_treatment_status[selected_col] = {
+                                    'treated': True,
+                                    'method': 'Backward Fill',
+                                    'status': 'Completed',
+                                    'details': 'Applied backward fill'
+                                }
+                                st.session_state.applied_changes.append(f"Applied backward fill to column '{selected_col}'")
+                                
+                                st.success(f"✅ Applied backward fill to '{selected_col}'")
+                            
+                            st.session_state.progress['cleaning'] = True
                             st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Error applying treatment: {str(e)}")
+                
+                # Reset button for this column
+                if st.button(f"🔄 Reset '{selected_col}'", key=f"reset_{selected_col}"):
+                    if selected_col in st.session_state.data.columns:
+                        st.session_state.cleaned_data[selected_col] = st.session_state.data[selected_col]
+                        if selected_col in st.session_state.column_treatment_status:
+                            del st.session_state.column_treatment_status[selected_col]
+                        st.session_state.applied_changes.append(f"Reset column '{selected_col}' to original")
+                        st.success(f"✅ Reset '{selected_col}' to original values")
+                        st.rerun()
         
         else:
-            st.success("🎉 No missing values found in any column!")
+            st.success("🎉 No missing values found in the dataset!")
         
-        # Show applied changes history
+        # Applied Changes History
         if st.session_state.applied_changes:
             st.markdown("---")
             st.markdown("#### 📋 Applied Changes History")
-            for i, change in enumerate(st.session_state.applied_changes[-5:]):  # Show last 5 changes
+            
+            for i, change in enumerate(st.session_state.applied_changes[-10:]):  # Show last 10 changes
                 st.markdown(f'<div class="change-history">{i+1}. {change}</div>', unsafe_allow_html=True)
             
             if st.button("Clear History"):
                 st.session_state.applied_changes = []
                 st.rerun()
         
+        # Visualization
         st.markdown("---")
-        st.markdown("### 📊 Current Missing Values Heatmap")
+        st.markdown("### 📊 Missing Values Visualization")
         
-        # Get fresh missing data from session state
-        missing_data = st.session_state.cleaned_data.isnull().sum()
-        missing_data = missing_data[missing_data > 0].sort_values(ascending=False)
+        # Get current missing values
+        current_missing = st.session_state.cleaned_data.isnull().sum()
+        current_missing = current_missing[current_missing > 0]
         
-        if len(missing_data) > 0:
-            fig = px.bar(x=missing_data.index, y=missing_data.values,
-                        title="Current Missing Values by Column",
-                        labels={'x': 'Column', 'y': 'Missing Count'},
-                        color=missing_data.values,
-                        color_continuous_scale='Reds')
-            st.plotly_chart(fig, use_container_width=True)
+        if len(current_missing) > 0:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Bar chart
+                fig = px.bar(
+                    x=current_missing.index,
+                    y=current_missing.values,
+                    title="Missing Values by Column",
+                    labels={'x': 'Column', 'y': 'Missing Count'},
+                    color=current_missing.values,
+                    color_continuous_scale='Reds'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Pie chart for missing values distribution
+                fig = px.pie(
+                    values=current_missing.values,
+                    names=current_missing.index,
+                    title="Distribution of Missing Values",
+                    hole=0.4
+                )
+                st.plotly_chart(fig, use_container_width=True)
         else:
-            st.success("🎉 No missing values in the dataset!")
+            st.success("🎉 No missing values remaining in the dataset!")
         
+        # Current Data Preview
+        st.markdown("---")
         st.markdown("### 📋 Current Data Preview")
-        st.dataframe(st.session_state.cleaned_data.head(10), use_container_width=True)
         
-        # Show current data stats
-        st.markdown("#### 📊 Current Data Statistics")
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns([2, 1])
+        
         with col1:
-            st.metric("Total Rows", len(st.session_state.cleaned_data))
-        with col2:
-            st.metric("Total Columns", len(st.session_state.cleaned_data.columns))
-        with col3:
-            current_missing = st.session_state.cleaned_data.isnull().sum().sum()
-            st.metric("Remaining Missing", current_missing)
+            st.dataframe(st.session_state.cleaned_data.head(10), use_container_width=True)
         
-        # Download Buttons
+        with col2:
+            st.markdown("#### 📊 Current Stats")
+            st.metric("Total Rows", len(st.session_state.cleaned_data))
+            st.metric("Total Columns", len(st.session_state.cleaned_data.columns))
+            remaining_missing = st.session_state.cleaned_data.isnull().sum().sum()
+            st.metric("Remaining Missing", remaining_missing)
+            if remaining_missing == 0:
+                st.success("✅ Data is clean!")
+            else:
+                st.warning(f"⚠️ {remaining_missing} missing values remaining")
+        
+        # Download Section
         st.markdown("---")
         st.markdown("### 📥 Download Your Data")
         
-        # Show current missing values count
-        total_missing = st.session_state.cleaned_data.isnull().sum().sum()
-        if total_missing == 0:
-            st.success(f"✅ Your data is clean! No missing values remaining.")
-        else:
-            st.warning(f"⚠️ Still {total_missing} missing values in the dataset. Apply cleaning operations above.")
+        col1, col2, col3 = st.columns(3)
         
-        col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             csv_original = st.session_state.data.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Download Original Data",
+                label="📥 Original Data",
                 data=csv_original,
                 file_name="original_data.csv",
                 mime="text/csv",
-                help="Download the data as it was originally uploaded (before any cleaning)"
+                help="Download the data as it was originally uploaded",
+                use_container_width=True
             )
+        
         with col2:
-            # Get the CURRENT state of cleaned_data
             csv_cleaned = st.session_state.cleaned_data.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Download Cleaned Data",
+                label="📥 Cleaned Data",
                 data=csv_cleaned,
                 file_name="cleaned_data.csv",
                 mime="text/csv",
                 help="Download the data with all cleaning operations applied",
-                type="primary"
+                type="primary",
+                use_container_width=True
             )
-        with col3:
-            if st.button("🔄 Refresh Data", 
-                        help="Refresh the view with latest changes",
-                        type="secondary"):
-                st.rerun()
-            
-            if st.button("🔄 Reset All", 
-                        help="Reset all cleaning operations",
-                        type="secondary"):
-                st.session_state.cleaned_data = st.session_state.data.copy()
-                st.session_state.applied_changes = []
-                st.success("✅ All changes reset to original data!")
-                st.rerun()
         
+        with col3:
+            if st.button("🔄 Refresh View", use_container_width=True):
+                st.rerun()
+    
     else:
         st.warning("⚠️ Please upload data in Step 2 first")
 
