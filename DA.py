@@ -395,18 +395,20 @@ with tab3:
         st.markdown("---")
         st.markdown("### 🎯 Column-by-Column Missing Value Treatment")
         
-        # Get columns with missing values
-        cols_with_missing = df.columns[df.isnull().any()].tolist()
+        # Get columns with missing values - ALWAYS get fresh from session state
+        cols_with_missing = st.session_state.cleaned_data.columns[
+            st.session_state.cleaned_data.isnull().any()
+        ].tolist()
         
         if len(cols_with_missing) > 0:
             # Show current status
             st.markdown("#### 📊 Current Missing Values Status")
             
-            # Create a summary table
+            # Create a summary table with FRESH data
             summary_data = []
             for col in cols_with_missing:
-                missing_count = df[col].isnull().sum()
-                missing_percent = (missing_count / len(df) * 100)
+                missing_count = st.session_state.cleaned_data[col].isnull().sum()
+                missing_percent = (missing_count / len(st.session_state.cleaned_data) * 100)
                 treatment_status = st.session_state.column_treatment_status.get(col, {}).get('status', 'Pending')
                 treatment_method = st.session_state.column_treatment_status.get(col, {}).get('method', 'Not treated')
                 
@@ -414,7 +416,7 @@ with tab3:
                     'Column': col,
                     'Missing Count': missing_count,
                     'Missing %': f"{missing_percent:.1f}%",
-                    'Data Type': str(df[col].dtype),
+                    'Data Type': str(st.session_state.cleaned_data[col].dtype),
                     'Status': treatment_status,
                     'Method': treatment_method
                 })
@@ -435,10 +437,10 @@ with tab3:
                 with st.container():
                     st.markdown(f"#### 📊 Treating Column: **{selected_col}**")
                     
-                    # Get current column info
-                    col_missing = df[selected_col].isnull().sum()
-                    col_missing_percent = (col_missing / len(df) * 100)
-                    col_type = df[selected_col].dtype
+                    # Get current column info from session state
+                    col_missing = st.session_state.cleaned_data[selected_col].isnull().sum()
+                    col_missing_percent = (col_missing / len(st.session_state.cleaned_data) * 100)
+                    col_type = st.session_state.cleaned_data[selected_col].dtype
                     
                     col1, col2 = st.columns(2)
                     
@@ -447,9 +449,9 @@ with tab3:
                         st.write(f"**Data Type:** {col_type}")
                         st.write(f"**Missing Values:** {col_missing} ({col_missing_percent:.1f}%)")
                         
-                        if col_missing < len(df):
+                        if col_missing < len(st.session_state.cleaned_data):
                             st.markdown("**Sample Values:**")
-                            non_missing = df[selected_col].dropna()
+                            non_missing = st.session_state.cleaned_data[selected_col].dropna()
                             if len(non_missing) > 0:
                                 st.write(non_missing.head(5).tolist())
                     
@@ -457,11 +459,11 @@ with tab3:
                         if pd.api.types.is_numeric_dtype(col_type):
                             st.markdown("**Statistics:**")
                             stats = {
-                                'Mean': df[selected_col].mean(),
-                                'Median': df[selected_col].median(),
-                                'Std Dev': df[selected_col].std(),
-                                'Min': df[selected_col].min(),
-                                'Max': df[selected_col].max()
+                                'Mean': st.session_state.cleaned_data[selected_col].mean(),
+                                'Median': st.session_state.cleaned_data[selected_col].median(),
+                                'Std Dev': st.session_state.cleaned_data[selected_col].std(),
+                                'Min': st.session_state.cleaned_data[selected_col].min(),
+                                'Max': st.session_state.cleaned_data[selected_col].max()
                             }
                             for stat_name, stat_value in stats.items():
                                 st.write(f"**{stat_name}:** {stat_value:.2f}")
@@ -675,7 +677,7 @@ with tab3:
         st.markdown("---")
         st.markdown("### 📊 Missing Values Visualization")
         
-        # Get current missing values
+        # Get current missing values from session state
         current_missing = st.session_state.cleaned_data.isnull().sum()
         current_missing = current_missing[current_missing > 0]
         
