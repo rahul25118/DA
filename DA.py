@@ -402,70 +402,106 @@ with tab3:
                             if st.button(f"Apply to {col}", key=f"apply_{col}"):
                                 if method == "Select Method":
                                     st.warning("Please select a method first!")
-                                elif method == "Drop Rows":
-                                    before = len(st.session_state.cleaned_data)
-                                    st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[col])
-                                    after = len(st.session_state.cleaned_data)
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"Dropped {before - after} rows!")
-                                    st.rerun()
-                                elif method == "Fill with Mean":
-                                    # Calculate mean from NON-NULL values only
-                                    mean_val = st.session_state.cleaned_data[col].mean()
-                                    if decimal_handling == "Round Up (24)":
-                                        fill_val = np.ceil(mean_val)
-                                    elif decimal_handling == "Round Down (23)":
-                                        fill_val = np.floor(mean_val)
-                                    elif decimal_handling == "Round Nearest (24)":
-                                        fill_val = np.round(mean_val)
-                                    else:  # Keep Decimal
-                                        fill_val = mean_val
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(fill_val)
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled with mean: {fill_val:.2f} (calculated from existing values only)")
-                                    st.rerun()
-                                elif method == "Fill with Median":
-                                    # Calculate median from NON-NULL values only
-                                    median_val = st.session_state.cleaned_data[col].median()
-                                    if decimal_handling == "Round Up (24)":
-                                        fill_val = np.ceil(median_val)
-                                    elif decimal_handling == "Round Down (23)":
-                                        fill_val = np.floor(median_val)
-                                    elif decimal_handling == "Round Nearest (24)":
-                                        fill_val = np.round(median_val)
-                                    else:  # Keep Decimal
-                                        fill_val = median_val
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(fill_val)
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled with median: {fill_val:.2f} (calculated from existing values only)")
-                                    st.rerun()
-                                elif method == "Fill with Mode":
-                                    # Calculate mode from NON-NULL values only
-                                    mode_val = st.session_state.cleaned_data[col].mode()[0] if not st.session_state.cleaned_data[col].mode().empty else 0
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(mode_val)
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled with mode: {mode_val} (calculated from existing values only)")
-                                    st.rerun()
-                                elif method == "Fill with Custom Value":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(custom_val)
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success(f"Filled with: {custom_val}")
-                                    st.rerun()
-                                elif method == "Fill with 'Unknown'":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna('Unknown')
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success("Filled with 'Unknown'")
-                                    st.rerun()
-                                elif method == "Forward Fill":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='ffill')
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success("Applied forward fill!")
-                                    st.rerun()
-                                elif method == "Backward Fill":
-                                    st.session_state.cleaned_data[col] = st.session_state.cleaned_data[col].fillna(method='bfill')
-                                    st.session_state.progress['cleaning'] = True
-                                    st.success("Applied backward fill!")
-                                    st.rerun()
+                                    
+                                else:
+                                    # Get a fresh copy of cleaned data
+                                    temp_df = st.session_state.cleaned_data.copy()
+                                    
+                                    if method == "Drop Rows":
+                                        before = len(temp_df)
+                                        temp_df = temp_df.dropna(subset=[col])
+                                        after = len(temp_df)
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"Dropped {before - after} rows!")
+                                        st.rerun()
+                                        
+                                    elif method == "Fill with Mean":
+                                        # Calculate mean from NON-NULL values only
+                                        mean_val = temp_df[col].mean()
+                                        if decimal_handling == "Round Up (24)":
+                                            fill_val = np.ceil(mean_val)
+                                        elif decimal_handling == "Round Down (23)":
+                                            fill_val = np.floor(mean_val)
+                                        elif decimal_handling == "Round Nearest (24)":
+                                            fill_val = np.round(mean_val)
+                                        else:  # Keep Decimal
+                                            fill_val = mean_val
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(fill_val)
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Filled {col} with mean: {fill_val:.2f}")
+                                        st.rerun()
+                                        
+                                    elif method == "Fill with Median":
+                                        # Calculate median from NON-NULL values only
+                                        median_val = temp_df[col].median()
+                                        if decimal_handling == "Round Up (24)":
+                                            fill_val = np.ceil(median_val)
+                                        elif decimal_handling == "Round Down (23)":
+                                            fill_val = np.floor(median_val)
+                                        elif decimal_handling == "Round Nearest (24)":
+                                            fill_val = np.round(median_val)
+                                        else:  # Keep Decimal
+                                            fill_val = median_val
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(fill_val)
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Filled {col} with median: {fill_val:.2f}")
+                                        st.rerun()
+                                        
+                                    elif method == "Fill with Mode":
+                                        # Calculate mode from NON-NULL values only
+                                        mode_series = temp_df[col].mode()
+                                        mode_val = mode_series[0] if len(mode_series) > 0 else 0
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(mode_val)
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Filled {col} with mode: {mode_val}")
+                                        st.rerun()
+                                        
+                                    elif method == "Fill with Custom Value":
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(custom_val)
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Filled {col} with: {custom_val}")
+                                        st.rerun()
+                                        
+                                    elif method == "Fill with 'Unknown'":
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna('Unknown')
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Filled {col} with 'Unknown'")
+                                        st.rerun()
+                                        
+                                    elif method == "Forward Fill":
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(method='ffill')
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Applied forward fill to {col}")
+                                        st.rerun()
+                                        
+                                    elif method == "Backward Fill":
+                                        # Fill the missing values
+                                        temp_df[col] = temp_df[col].fillna(method='bfill')
+                                        # Save back to session state
+                                        st.session_state.cleaned_data = temp_df
+                                        st.session_state.progress['cleaning'] = True
+                                        st.success(f"✅ Applied backward fill to {col}")
+                                        st.rerun()
             else:
                 # If too many columns, show dropdown selection
                 st.warning("Too many columns with missing values. Select specific columns to treat:")
