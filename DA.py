@@ -405,13 +405,19 @@ with tab3:
                                     
                                 elif method == "Drop Rows":
                                     before = len(st.session_state.cleaned_data)
-                                    st.session_state.cleaned_data = st.session_state.cleaned_data.dropna(subset=[col]).copy()
+                                    # Create a copy and drop
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    cleaned_df = cleaned_df.dropna(subset=[col])
+                                    st.session_state.cleaned_data = cleaned_df
                                     after = len(st.session_state.cleaned_data)
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Dropped {before - after} rows! Click Download to get updated data.")
+                                    st.success(f"✅ Dropped {before - after} rows! Click 🔄 Refresh Data before downloading.")
                                     
                                 elif method == "Fill with Mean":
-                                    mean_val = st.session_state.cleaned_data[col].mean()
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    mean_val = cleaned_df[col].mean()
+                                    
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = float(np.ceil(mean_val))
                                     elif decimal_handling == "Round Down (23)":
@@ -421,12 +427,19 @@ with tab3:
                                     else:
                                         fill_val = float(mean_val)
                                     
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(fill_val)
+                                    # Fill the values
+                                    cleaned_df[col] = cleaned_df[col].fillna(fill_val)
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled {col} with mean: {fill_val:.2f}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Filled {col} with mean: {fill_val:.2f}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Fill with Median":
-                                    median_val = st.session_state.cleaned_data[col].median()
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    median_val = cleaned_df[col].median()
+                                    
                                     if decimal_handling == "Round Up (24)":
                                         fill_val = float(np.ceil(median_val))
                                     elif decimal_handling == "Round Down (23)":
@@ -436,37 +449,67 @@ with tab3:
                                     else:
                                         fill_val = float(median_val)
                                     
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(fill_val)
+                                    # Fill the values
+                                    cleaned_df[col] = cleaned_df[col].fillna(fill_val)
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled {col} with median: {fill_val:.2f}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Filled {col} with median: {fill_val:.2f}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Fill with Mode":
-                                    mode_series = st.session_state.cleaned_data[col].mode()
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    mode_series = cleaned_df[col].mode()
                                     mode_val = mode_series[0] if len(mode_series) > 0 else 0
                                     
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(mode_val)
+                                    # Fill the values
+                                    cleaned_df[col] = cleaned_df[col].fillna(mode_val)
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled {col} with mode: {mode_val}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Filled {col} with mode: {mode_val}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Fill with Custom Value":
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(custom_val)
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    cleaned_df[col] = cleaned_df[col].fillna(custom_val)
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled {col} with: {custom_val}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Filled {col} with: {custom_val}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Fill with 'Unknown'":
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna('Unknown')
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    cleaned_df[col] = cleaned_df[col].fillna('Unknown')
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Filled {col} with 'Unknown'. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Filled {col} with 'Unknown'. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Forward Fill":
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(method='ffill')
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    cleaned_df[col] = cleaned_df[col].fillna(method='ffill')
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Applied forward fill to {col}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Applied forward fill to {col}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
                                     
                                 elif method == "Backward Fill":
-                                    st.session_state.cleaned_data.loc[:, col] = st.session_state.cleaned_data[col].fillna(method='bfill')
+                                    # Create a copy
+                                    cleaned_df = st.session_state.cleaned_data.copy()
+                                    cleaned_df[col] = cleaned_df[col].fillna(method='bfill')
+                                    # Save back
+                                    st.session_state.cleaned_data = cleaned_df
                                     st.session_state.progress['cleaning'] = True
-                                    st.success(f"✅ Applied backward fill to {col}. Missing values: {st.session_state.cleaned_data[col].isnull().sum()}")
+                                    missing_after = st.session_state.cleaned_data[col].isnull().sum()
+                                    st.success(f"✅ Applied backward fill to {col}. Missing values now: {missing_after}. Click 🔄 Refresh Data.")
             else:
                 # If too many columns, show dropdown selection
                 st.warning("Too many columns with missing values. Select specific columns to treat:")
