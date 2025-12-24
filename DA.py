@@ -443,12 +443,18 @@ with tab3:
             
             with col_apply:
                 if st.button("✅ Apply All Changes", type="primary"):
-                    # Apply all operations at once
-                    temp_df = st.session_state.cleaned_data.copy()
+                    # Create a working copy
+                    temp_df = st.session_state.data.copy()  # Start from ORIGINAL data
                     
-                    for op in st.session_state.cleaning_operations:
+                    st.write("🔍 DEBUG: Starting to apply operations...")
+                    st.write(f"Original missing values: {temp_df.isnull().sum().sum()}")
+                    
+                    for i, op in enumerate(st.session_state.cleaning_operations):
                         col = op['column']
                         method = op['method']
+                        
+                        st.write(f"Operation {i+1}: {method} on column '{col}'")
+                        st.write(f"Before: {temp_df[col].isnull().sum()} missing in {col}")
                         
                         if method == "Drop Rows":
                             temp_df = temp_df.dropna(subset=[col])
@@ -466,6 +472,7 @@ with tab3:
                             else:
                                 fill_val = float(mean_val)
                             
+                            st.write(f"Filling with: {fill_val}")
                             temp_df[col] = temp_df[col].fillna(fill_val)
                             
                         elif method == "Fill with Median":
@@ -481,14 +488,17 @@ with tab3:
                             else:
                                 fill_val = float(median_val)
                             
+                            st.write(f"Filling with: {fill_val}")
                             temp_df[col] = temp_df[col].fillna(fill_val)
                             
                         elif method == "Fill with Mode":
                             mode_series = temp_df[col].mode()
                             mode_val = mode_series[0] if len(mode_series) > 0 else 0
+                            st.write(f"Filling with: {mode_val}")
                             temp_df[col] = temp_df[col].fillna(mode_val)
                             
                         elif method == "Fill with Custom Value":
+                            st.write(f"Filling with: {op['custom_val']}")
                             temp_df[col] = temp_df[col].fillna(op['custom_val'])
                             
                         elif method == "Fill with 'Unknown'":
@@ -499,12 +509,25 @@ with tab3:
                             
                         elif method == "Backward Fill":
                             temp_df[col] = temp_df[col].fillna(method='bfill')
+                        
+                        st.write(f"After: {temp_df[col].isnull().sum()} missing in {col}")
+                        st.write("---")
                     
-                    # Save the cleaned data
-                    st.session_state.cleaned_data = temp_df
+                    st.write(f"🔍 FINAL missing values in temp_df: {temp_df.isnull().sum().sum()}")
+                    
+                    # Save the result
+                    st.session_state.cleaned_data = temp_df.copy()
+                    
+                    st.write(f"🔍 Missing values in session_state.cleaned_data: {st.session_state.cleaned_data.isnull().sum().sum()}")
+                    
                     st.session_state.cleaning_operations = []
                     st.session_state.progress['cleaning'] = True
-                    st.success("🎉 All operations applied successfully!")
+                    
+                    # Show what happened
+                    remaining_missing = st.session_state.cleaned_data.isnull().sum().sum()
+                    st.success(f"🎉 All operations applied! Remaining missing values: {remaining_missing}")
+                    
+                    st.write("🔍 About to rerun...")
                     st.rerun()
             
             with col_clear:
