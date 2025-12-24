@@ -303,10 +303,10 @@ with tab3:
         """)
     
     if st.session_state.data is not None:
-        # Always use the session state directly - no copy at top level
-        df = st.session_state.cleaned_data
-        
         st.markdown("### 🧹 Data Quality Overview")
+        
+        # Get fresh reference to cleaned data
+        df = st.session_state.cleaned_data
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -341,8 +341,8 @@ with tab3:
         st.markdown("---")
         st.markdown("### 🎯 Column-by-Column Missing Value Treatment")
         
-        # Get columns with missing values
-        cols_with_missing = df.columns[df.isnull().any()].tolist()
+        # Get columns with missing values - refresh this calculation
+        cols_with_missing = st.session_state.cleaned_data.columns[st.session_state.cleaned_data.isnull().any()].tolist()
         
         if len(cols_with_missing) > 0:
             st.info(f"Found {len(cols_with_missing)} columns with missing values. Treat them individually below:")
@@ -350,23 +350,27 @@ with tab3:
             # Create tabs for each column with missing values
             if len(cols_with_missing) <= 10:
                 for col in cols_with_missing:
-                    with st.expander(f"📊 {col} - {df[col].isnull().sum()} missing values ({(df[col].isnull().sum()/len(df)*100):.1f}%)"):
-                        col_type = df[col].dtype
+                    # Get fresh missing count
+                    missing_count = st.session_state.cleaned_data[col].isnull().sum()
+                    missing_pct = (missing_count / len(st.session_state.cleaned_data) * 100)
+                    
+                    with st.expander(f"📊 {col} - {missing_count} missing values ({missing_pct:.1f}%)"):
+                        col_type = st.session_state.cleaned_data[col].dtype
                         
                         col_left, col_right = st.columns([2, 1])
                         
                         with col_left:
                             st.markdown(f"**Data Type:** {col_type}")
-                            st.markdown(f"**Missing:** {df[col].isnull().sum()} out of {len(df)} rows")
+                            st.markdown(f"**Missing:** {st.session_state.cleaned_data[col].isnull().sum()} out of {len(st.session_state.cleaned_data)} rows")
                             
                             # Show sample values
                             st.markdown("**Sample Non-Missing Values:**")
-                            sample_vals = df[col].dropna().head(5).tolist()
+                            sample_vals = st.session_state.cleaned_data[col].dropna().head(5).tolist()
                             st.write(sample_vals)
                         
                         with col_right:
                             # Method selection based on data type
-                            if pd.api.types.is_numeric_dtype(df[col]):
+                            if pd.api.types.is_numeric_dtype(st.session_state.cleaned_data[col]):
                                 method = st.selectbox(
                                     f"Method for {col}",
                                     ["Select Method", "Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with Custom Value", "Forward Fill", "Backward Fill"],
@@ -536,33 +540,36 @@ with tab3:
         if total_missing == 0:
             st.success(f"✅ Your data is clean! No missing values remaining.")
         else:
-            st.warning(f"⚠️ Still {total_missing} missing values in the dataset. Apply cleaning operations above.")
+            st.warning(f"⚠️ Still {total_missing} missing values in the dataset.")
         
-        col1, col2, col3 = st.columns([1, 1, 1])
+        col1, col2 = st.columns(2)
         with col1:
-            csv_original = st.session_state.data.to_csv(index=False).encode('utf-8')
+            # Original data download
+            @st.cache_data
+            def convert_df_to_csv(df):
+                return df.to_csv(index=False).encode('utf-8')
+            
+            csv_original = convert_df_to_csv(st.session_state.data)
             st.download_button(
                 label="📥 Download Original Data",
                 data=csv_original,
                 file_name="original_data.csv",
                 mime="text/csv",
-                help="Download the data as it was originally uploaded (before any cleaning)"
+                help="Download the data as originally uploaded"
             )
         with col2:
-            # Get the CURRENT state of cleaned_data
+            # Cleaned data download - force fresh conversion every time
             csv_cleaned = st.session_state.cleaned_data.to_csv(index=False).encode('utf-8')
+            
+            # Show a preview of what will be downloaded
             st.download_button(
                 label="📥 Download Cleaned Data",
                 data=csv_cleaned,
-                file_name="cleaned_data.csv",
+                file_name=f"cleaned_data_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
-                help="Download the data with all cleaning operations applied",
+                help=f"Download cleaned data (Missing values: {total_missing})",
                 type="primary"
             )
-        with col3:
-            if st.button("🔄 Refresh Data", help="Click this before downloading to ensure latest changes"):
-                st.success("✅ Data refreshed! Now click Download Cleaned Data")
-                st.rerun()
         
     else:
         st.warning("⚠️ Please upload data in Step 2 first")
